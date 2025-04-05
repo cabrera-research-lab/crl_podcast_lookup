@@ -1,7 +1,6 @@
 import streamlit as st
 from query_module import query_transcripts
-from dotenv import load_dotenv
-load_dotenv()
+from urllib.parse import urlparse, parse_qs
 
 st.set_page_config(page_title="CRL Pod Lookup", layout="wide")
 st.title("CRL Podcast Lookup")
@@ -12,22 +11,37 @@ if query:
     with st.spinner("Searching transcripts..."):
         answer, related_videos = query_transcripts(query)
 
-    st.subheader("Answer")
-    st.write(answer)
-
-    st.subheader("Related Videos")
-    for title, url, desc, date, timestamps in related_videos:
+    st.subheader("Lookup results")
+    for title, url, desc, date, timestamps, reason in related_videos:
         st.markdown(f"### [{title}]({url})")
-        st.markdown(f"📅 **Date:** {date}")
-        st.markdown(f"📝 {desc}")
+        st.markdown(f"🔍 **Why this episode:** {reason}")
 
-        video_id = url.split("v=")[-1].split("&")[0]
-
-        for timestamp in timestamps:
-            url_with_time = f"{url}&t={timestamp}s" if "&" in url else f"{url}?t={timestamp}s"
-            st.markdown(f"⏱️ Jump to [timestamp]({url_with_time}) → `{timestamp}` seconds")
-
-        if timestamps:
-            st.video(f"https://www.youtube.com/embed/{video_id}?start={timestamps[0]}")
+        # Determine base video link format
+        if "youtu.be" in url:
+            base_link = url.split("?")[0]
+            video_id = base_link.split("/")[-1]
+        elif "watch?v=" in url:
+            video_id = url.split("v=")[-1].split("&")[0]
+            base_link = f"https://youtu.be/{video_id}"
         else:
-            st.video(f"https://www.youtube.com/embed/{video_id}")
+            base_link = url  # fallback
+            video_id = ""
+
+        # Format and display inline timestamps
+        if timestamps:
+            formatted_links = []
+            for t in timestamps:
+                mins, secs = divmod(t, 60)
+                label = f"{mins}:{secs:02d}"
+                timestamp_link = f"{base_link}?t={t}"
+                formatted_link = f"[{label}]({timestamp_link})"
+
+                if formatted_link not in formatted_links:
+                    formatted_links.append(formatted_link)
+
+            st.markdown("⏱️ <span style='color:#f39c12;'>[BETA]</span> Jump to: " + " • ".join(formatted_links),
+                        unsafe_allow_html=True)
+
+        # Embed the video
+        if video_id:
+            st.video(f"https://www.youtube.com/embed/{video_id}?start={timestamps[0]}")
