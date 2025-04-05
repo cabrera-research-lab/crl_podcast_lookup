@@ -5,14 +5,12 @@ from langchain.chains import RetrievalQAWithSourcesChain
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 # Load vector store
 def load_qa():
-    db = FAISS.load_local("video_index", OpenAIEmbeddings(), allow_dangerous_deserialization=True)
+    db = FAISS.load_local("video_index", OpenAIEmbeddings(openai_api_key=st.secrets["OPENAI_API_KEY"]),
+                          allow_dangerous_deserialization=True)
     retriever = db.as_retriever(search_type="similarity", k=3)
     llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
 
@@ -56,7 +54,7 @@ def query_transcripts(query):
         video_map[url]["desc"] = desc
         video_map[url]["date"] = date
         video_map[url]["timestamps"].append(timestamp)
-        
+
     related_videos = []
     for video in video_map.values():
         video["timestamps"].sort()
